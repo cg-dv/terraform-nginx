@@ -6,8 +6,8 @@ resource "aws_vpc" "example" {
   cidr_block = "10.0.0.0/16"
 }
 
-resource "aws_security_group" "sg-http" {
-  name        = "sg-http"
+resource "aws_security_group" "http" {
+  name        = "http"
   description = "Allow HTTP inbound traffic"
   vpc_id      = aws_vpc.example.id
 
@@ -32,35 +32,22 @@ resource "aws_internet_gateway" "igw" {
 }
 
 resource "aws_subnet" "example_subnet_1" {
-  vpc_id     = aws_vpc.example.id
-  cidr_block = "10.0.1.0/24"
+  vpc_id               = aws_vpc.example.id
+  cidr_block           = "10.0.1.0/24"
+  availability_zone_id = "use1-az1"
 }
 
 resource "aws_subnet" "example_subnet_2" {
-  vpc_id     = aws_vpc.example.id
-  cidr_block = "10.0.2.0/24"
+  vpc_id               = aws_vpc.example.id
+  cidr_block           = "10.0.2.0/24"
+  availability_zone_id = "use1-az2"
 }
-
-resource "aws_route_table" "r" {
-  vpc_id = aws_vpc.example.id
-
-  route {
-    cidr_block = "10.0.1.0/24"
-    gateway_id = aws_internet_gateway.igw.id
-  }
-
-  route {
-    ipv6_cidr_block = "::/0"
-    gateway_id      = aws_internet_gateway.igw.id
-  }
-}
-
 
 resource "aws_lb" "test" {
   name               = "example-alb"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.sg-http.name]
+  security_groups    = [aws_security_group.http.id]
   subnets            = [aws_subnet.example_subnet_1.id, aws_subnet.example_subnet_2.id]
 
   enable_deletion_protection = false
@@ -73,6 +60,12 @@ resource "aws_lb_target_group" "example-tg" {
   vpc_id   = aws_vpc.example.id
 }
 
+resource "aws_lb_target_group_attachment" "test" {
+  target_group_arn = aws_lb_target_group.example-tg.arn
+  target_id        = aws_lb_target_group.example-tg.id
+  port             = 80
+}
+
 resource "aws_autoscaling_attachment" "asg_attachment" {
   autoscaling_group_name = aws_autoscaling_group.bar.name
   alb_target_group_arn   = aws_lb_target_group.example-tg.arn
@@ -80,7 +73,7 @@ resource "aws_autoscaling_attachment" "asg_attachment" {
 
 resource "aws_launch_configuration" "example-lc" {
   name          = "terraform-lc"
-  image_id      = "ami-2757f631"
+  image_id      = "ami-0394780d7884654b5"
   instance_type = "t2.micro"
 }
 
@@ -89,11 +82,11 @@ resource "aws_autoscaling_group" "bar" {
   max_size                  = 4
   min_size                  = 1
   health_check_grace_period = 300
-  health_check_type         = "ELB"
   desired_capacity          = 1
   force_delete              = true
   launch_configuration      = aws_launch_configuration.example-lc.name
-  vpc_zone_identifier       = [aws_vpc.example.id]
+  target_group_arns         = [aws_lb_target_group.example-tg.arn]
+  vpc_zone_identifier       = [aws_subnet.example_subnet_1.id, aws_subnet.example_subnet_2.id]
 
   initial_lifecycle_hook {
     name                 = "foobar"
