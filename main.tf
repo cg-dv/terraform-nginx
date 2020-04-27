@@ -12,11 +12,11 @@ resource "aws_security_group" "http" {
   vpc_id      = aws_vpc.example.id
 
   ingress {
-    description = "TLS from VPC"
+    description = "TLS from anywhere"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = [aws_vpc.example.cidr_block]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -43,7 +43,7 @@ resource "aws_subnet" "example_subnet_2" {
   availability_zone_id = "use1-az2"
 }
 
-resource "aws_lb" "test" {
+resource "aws_lb" "example-alb" {
   name               = "example-alb"
   internal           = false
   load_balancer_type = "application"
@@ -60,10 +60,15 @@ resource "aws_lb_target_group" "example-tg" {
   vpc_id   = aws_vpc.example.id
 }
 
-resource "aws_lb_target_group_attachment" "test" {
-  target_group_arn = aws_lb_target_group.example-tg.arn
-  target_id        = aws_lb_target_group.example-tg.id
-  port             = 80
+resource "aws_lb_listener" "alb-listener" {
+  load_balancer_arn = aws_lb.example-alb.id 
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.example-tg.arn
+  }
 }
 
 resource "aws_autoscaling_attachment" "asg_attachment" {
@@ -72,9 +77,12 @@ resource "aws_autoscaling_attachment" "asg_attachment" {
 }
 
 resource "aws_launch_configuration" "example-lc" {
-  name          = "terraform-lc"
-  image_id      = "ami-0394780d7884654b5"
-  instance_type = "t2.micro"
+  name                        = "terraform-lc"
+  image_id                    = "ami-0323c3dd2da7fb37d"
+  instance_type               = "t2.micro"
+  associate_public_ip_address = true
+  user_data = "#!/usr/bin/env bash\nsudo amazon-linux-extras enable nginx1.12\nsudo yum -y install nginx\n sudo systemctl start nginx"
+  key_name                    = "tf_example"
 }
 
 resource "aws_autoscaling_group" "bar" {
