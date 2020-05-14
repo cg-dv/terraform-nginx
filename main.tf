@@ -31,6 +31,14 @@ resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.example.id
 }
 
+resource "aws_default_route_table" "route_to_internet" {
+  default_route_table_id = aws_vpc.example.default_route_table_id
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.igw.id
+  }
+}
+
 resource "aws_subnet" "example_subnet_1" {
   vpc_id               = aws_vpc.example.id
   cidr_block           = "10.0.1.0/24"
@@ -61,7 +69,7 @@ resource "aws_lb_target_group" "example-tg" {
 }
 
 resource "aws_lb_listener" "alb-listener" {
-  load_balancer_arn = aws_lb.example-alb.id 
+  load_balancer_arn = aws_lb.example-alb.id
   port              = "80"
   protocol          = "HTTP"
 
@@ -81,7 +89,8 @@ resource "aws_launch_configuration" "example-lc" {
   image_id                    = "ami-0323c3dd2da7fb37d"
   instance_type               = "t2.micro"
   associate_public_ip_address = true
-  user_data = "#!/usr/bin/env bash\nsudo amazon-linux-extras enable nginx1.12\nsudo yum -y install nginx\n sudo systemctl start nginx"
+  user_data                   = "#!/usr/bin/env bash\nsudo amazon-linux-extras enable nginx1.12\nsudo yum -y install nginx\nsudo systemctl start nginx"
+  security_groups             = [aws_security_group.http.id]
   key_name                    = "tf_example"
 }
 
@@ -91,6 +100,7 @@ resource "aws_autoscaling_group" "bar" {
   min_size                  = 1
   health_check_grace_period = 300
   desired_capacity          = 1
+  health_check_type         = "EC2" 
   force_delete              = true
   launch_configuration      = aws_launch_configuration.example-lc.name
   target_group_arns         = [aws_lb_target_group.example-tg.arn]
@@ -99,7 +109,13 @@ resource "aws_autoscaling_group" "bar" {
   initial_lifecycle_hook {
     name                 = "foobar"
     default_result       = "CONTINUE"
-    heartbeat_timeout    = 2000
+    heartbeat_timeout    = 30
     lifecycle_transition = "autoscaling:EC2_INSTANCE_LAUNCHING"
+  }
+
+  tag {
+    key                 = "name"
+    value               = "example-instance"
+    propagate_at_launch = true
   }
 }
