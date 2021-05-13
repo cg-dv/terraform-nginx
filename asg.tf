@@ -8,7 +8,7 @@ resource "aws_launch_configuration" "example-lc" {
   image_id                    = "ami-0323c3dd2da7fb37d"
   instance_type               = "t2.micro"
   associate_public_ip_address = true
-  user_data                   = "#!/usr/bin/env bash\nsudo amazon-linux-extras enable nginx1.12\nsudo yum -y install nginx\nsudo systemctl start nginx"
+  user_data                   = "#!/usr/bin/env bash\nsudo yum update -y\nsudo yum remove docker docker-engine docker.io -y\nsudo yum install docker -y\nsudo systemctl start docker\nsudo systemctl enable docker\nsudo curl -L 'https://github.com/docker/compose/releases/download/1.29.1/docker-compose-$(uname -s)-$(uname -m)' -o /usr/local/bin/docker-compose\nsudo chmod +x /usr/local/bin/docker-compose\n"
   security_groups             = [aws_security_group.http.id]
   key_name                    = "tf_example"
 }
