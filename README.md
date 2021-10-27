@@ -1,6 +1,10 @@
 # EC2 Running nginx
 
-Terraform configuraton defining a VPC, an application load balancer (ALB), EC2 instances in an auto scaling group (ASG) across two availability zones, and a web security group. The launch configuration defined for the auto scaling group includes a script to install and start nginx on each EC2 instance.
+Terraform configuraton defining a VPC, an Internet Gateway, an application load balancer (ALB), EC2 instances in an auto scaling group (ASG) across two availability zones, and a web security group. The launch configuration defined for the auto scaling group includes a script to install and start nginx on each EC2 instance.
+
+## Diagram
+
+<img src="diagram/AWS-terraform-nginx.png?raw=true">
 
 ## Usage
 
